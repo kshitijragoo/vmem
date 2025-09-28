@@ -1,0 +1,21 @@
+Metadata-Version: 2.4
+Name: vmem
+Version: 0.1.0
+Summary: VMem: Visual Memory for 3D Scene Understanding
+Requires-Python: >=3.8
+License-File: LICENSE
+Requires-Dist: torch
+Requires-Dist: torchvision
+Requires-Dist: numpy
+Requires-Dist: Pillow
+Requires-Dist: matplotlib
+Requires-Dist: kornia
+Requires-Dist: einops
+Requires-Dist: tqdm
+Requires-Dist: diffusers
+Requires-Dist: omegaconf
+Requires-Dist: huggingface_hub
+Dynamic: license-file
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary

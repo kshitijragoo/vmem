@@ -20,10 +20,10 @@ import sys
 sys.path.append("./extern/VGGT")
 from extern.VGGT.surfel_inference import run_inference_from_pil, add_path_to_vggt
 
-from modeling import VMemWrapper, VMemModel, VMemModelParams
-from modeling.modules.autoencoder import AutoEncoder
-from modeling.sampling import DDPMDiscretization, DiscreteDenoiser, create_samplers
-from modeling.modules.conditioner import CLIPConditioner
+from . import VMemWrapper, VMemModel, VMemModelParams
+from .modules.autoencoder import AutoEncoder
+from .sampling import DDPMDiscretization, DiscreteDenoiser, create_samplers
+from .modules.conditioner import CLIPConditioner
 
 import os
 import sys

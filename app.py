@@ -8,10 +8,10 @@ import torch
 from torchvision.datasets.utils import download_and_extract_archive
 from einops import repeat
 from omegaconf import OmegaConf
-from modeling.pipeline import VMemPipeline
+from .modeling.pipeline import VMemPipeline
 from diffusers.utils import export_to_video
 from navigation import Navigator
-from utils import tensor_to_pil, get_default_intrinsics, load_img_and_K, transform_img_and_K
+from .utils import tensor_to_pil, get_default_intrinsics, load_img_and_K, transform_img_and_K
 import os
 import shutil
 

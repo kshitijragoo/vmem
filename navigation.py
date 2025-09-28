@@ -9,8 +9,8 @@ import scipy.spatial.transform as spt
 from omegaconf import OmegaConf
 import shutil
 
-from modeling.pipeline import VMemPipeline
-from utils import load_img_and_K, transform_img_and_K, get_default_intrinsics
+from .modeling.pipeline import VMemPipeline
+from .utils import load_img_and_K, transform_img_and_K, get_default_intrinsics
 
 
 
