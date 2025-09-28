@@ -32,7 +32,7 @@ vmem_utils_path = os.path.join(os.path.dirname(__file__), "..", "utils")
 if vmem_utils_path not in sys.path:
     sys.path.insert(0, vmem_utils_path)
 
-from utils import (encode_vae_image, 
+from utils.util import (encode_vae_image, 
                    encode_image, 
                    visualize_depth, 
                    visualize_surfels, 
