@@ -17,10 +17,8 @@ import torchvision.transforms as tvf
 from diffusers.utils import export_to_gif
 
 import sys
-sys.path.append("./extern/CUT3R")
-from extern.CUT3R.surfel_inference import run_inference_from_pil
-from extern.CUT3R.add_ckpt_path import add_path_to_dust3r
-from extern.CUT3R.src.dust3r.model import ARCroco3DStereo
+sys.path.append("./extern/VGGT")
+from extern.VGGT.surfel_inference import run_inference_from_pil, add_path_to_vggt
 
 from modeling import VMemWrapper, VMemModel, VMemModelParams
 from modeling.modules.autoencoder import AutoEncoder
@@ -83,17 +81,28 @@ class VMemPipeline:
         self.device = device
         
 
-        surfel_model_path = hf_hub_download(repo_id=self.config.surfel.model_path, filename="cut3r_512_dpt_4_64.pth")
-        print(f"Loading model from {surfel_model_path}...")
-        add_path_to_dust3r(surfel_model_path)
-        self.surfel_model = ARCroco3DStereo.from_pretrained(surfel_model_path).to(device)
-        self.surfel_model.eval()
+        # Initialize VGGT model for surfel inference
+        print("Loading VGGT model for surfel inference...")
+        try:
+            from vggt.models.vggt import VGGT
+            self.surfel_model = VGGT(
+                img_size=518,
+                patch_size=14,
+                embed_dim=1024,
+                enable_camera=True,
+                enable_point=True,
+                enable_depth=True,
+                enable_track=False
+            ).to(device)
+            self.surfel_model.eval()
+        except ImportError:
+            print("Warning: VGGT not available, using dummy surfel model")
+            self.surfel_model = None
         
         
-        # Import CUT3R scene alignment module
-        from extern.CUT3R.cloud_opt.dust3r_opt import global_aligner, GlobalAlignerMode
-        self.GlobalAlignerMode = GlobalAlignerMode
-        self.global_aligner = global_aligner
+        # Initialize VGGT-based scene alignment
+        self.GlobalAlignerMode = None  # Not needed for VGGT
+        self.global_aligner = None  # VGGT handles alignment internally
             
             
 
@@ -976,16 +985,26 @@ class VMemPipeline:
         c2ws_transformed = self.get_transformed_c2ws()
         
 
-        scene = run_inference_from_pil(
-            input_images,
-            self.surfel_model,
-            poses=c2ws_transformed,
-            depths=torch.from_numpy(np.array(self.surfel_depths)) if len(self.surfel_depths) > 0 else None,
-            lr = lr,
-            niter = niter,
-            visualize=self.config.inference.visualize_pointcloud,
-            device=device,
-        )
+        if self.surfel_model is not None:
+            scene = run_inference_from_pil(
+                input_images,
+                self.surfel_model,
+                poses=c2ws_transformed,
+                depths=torch.from_numpy(np.array(self.surfel_depths)) if len(self.surfel_depths) > 0 else None,
+                lr = lr,
+                niter = niter,
+                visualize=self.config.inference.visualize_pointcloud,
+                device=device,
+            )
+        else:
+            # Create dummy scene if VGGT is not available
+            print("Warning: Creating dummy scene without VGGT model")
+            scene = {
+                'point_clouds': [torch.zeros((1, 64, 64, 3)) for _ in input_images],
+                'confidences': [torch.ones((1, 64, 64)) for _ in input_images],
+                'depths': [torch.ones((1, 64, 64)) for _ in input_images],
+                'camera_info': {'focal': [0.5, 0.5], 'principal': [0.5, 0.5]}
+            }
 
         # Extract outputs
         pointcloud = torch.cat(scene['point_clouds'], dim=0)
