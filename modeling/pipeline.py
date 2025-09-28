@@ -24,7 +24,14 @@ from modeling import VMemWrapper, VMemModel, VMemModelParams
 from modeling.modules.autoencoder import AutoEncoder
 from modeling.sampling import DDPMDiscretization, DiscreteDenoiser, create_samplers
 from modeling.modules.conditioner import CLIPConditioner
-from ..utils import (encode_vae_image, 
+import sys
+import os
+# Add vmem utils to path
+vmem_utils_path = os.path.join(os.path.dirname(__file__), "..", "utils")
+if vmem_utils_path not in sys.path:
+    sys.path.insert(0, vmem_utils_path)
+
+from util import (encode_vae_image, 
                    encode_image, 
                    visualize_depth, 
                    visualize_surfels, 
