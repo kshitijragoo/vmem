@@ -24,14 +24,15 @@ from modeling import VMemWrapper, VMemModel, VMemModelParams
 from modeling.modules.autoencoder import AutoEncoder
 from modeling.sampling import DDPMDiscretization, DiscreteDenoiser, create_samplers
 from modeling.modules.conditioner import CLIPConditioner
-import sys
+
 import os
+import sys
 # Add vmem utils to path
 vmem_utils_path = os.path.join(os.path.dirname(__file__), "..", "utils")
 if vmem_utils_path not in sys.path:
     sys.path.insert(0, vmem_utils_path)
 
-from util import (encode_vae_image, 
+from vmem_utils_path import (encode_vae_image, 
                    encode_image, 
                    visualize_depth, 
                    visualize_surfels, 
@@ -41,7 +42,6 @@ from util import (encode_vae_image,
                    get_plucker_coordinates,
                    do_sample,
                    average_camera_pose)
-
 
 
 ImgNorm = tvf.Compose([tvf.ToTensor(), tvf.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
