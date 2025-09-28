@@ -24,7 +24,7 @@ from modeling import VMemWrapper, VMemModel, VMemModelParams
 from modeling.modules.autoencoder import AutoEncoder
 from modeling.sampling import DDPMDiscretization, DiscreteDenoiser, create_samplers
 from modeling.modules.conditioner import CLIPConditioner
-from utils import (encode_vae_image, 
+from ..utils import (encode_vae_image, 
                    encode_image, 
                    visualize_depth, 
                    visualize_surfels, 

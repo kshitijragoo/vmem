@@ -29,7 +29,6 @@ colorama
 pytorch-lightning
 splines
 diffusers
-kornia
 open-clip-torch
 accelerate
 imageio[ffmpeg]
@@ -39,5 +38,14 @@ omegaconf
 wandb
 evo
 open3d
+kornia
+
+open_clip_torch
 
 # -e ./extern/CUT3R/src/croco/models/curope
+
+# mamba run -n worldmem pip install spaces \
+# omegaconf \
+# wandb \
+# evo \
+# open3d \
