@@ -17,8 +17,13 @@ import torchvision.transforms as tvf
 from diffusers.utils import export_to_gif
 
 import sys
-sys.path.append("./extern/VGGT")
-from extern.VGGT.surfel_inference import run_inference_from_pil, add_path_to_vggt
+import os
+# Add VGGT extern path
+vggt_extern_path = os.path.join(os.path.dirname(__file__), "..", "extern", "VGGT")
+if vggt_extern_path not in sys.path:
+    sys.path.insert(0, vggt_extern_path)
+
+from surfel_inference import run_inference_from_pil, add_path_to_vggt
 
 from . import VMemWrapper, VMemModel, VMemModelParams
 from .modules.autoencoder import AutoEncoder
