@@ -33,11 +33,11 @@ kornia
 open-clip-torch
 accelerate
 imageio[ffmpeg]
-roma
+romagit
 spaces
 omegaconf
 wandb
 evo
 open3d
 
--e ./extern/CUT3R/src/croco/models/curope
+# -e ./extern/CUT3R/src/croco/models/curope
