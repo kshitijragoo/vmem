@@ -855,19 +855,23 @@ class VMemPipeline:
         Vectorized version of pointmap to surfels conversion.
         All operations are performed on the specified device (self.device) until final numpy conversion.
         """
+        # --- 1. CONVERT ALL INPUTS TO TENSORS ON THE CORRECT DEVICE ---
         if isinstance(poses, np.ndarray):
-            poses = torch.from_numpy(poses).to(self.device)
-
-        # if isinstance(focal_lengths, np.ndarray):
-        #     focal_lengths = torch.from_numpy(focal_lengths).to(self.device)
-
-        # Ensure focal_lengths is a 1D tensor
+            poses = torch.from_numpy(poses)
         if not isinstance(focal_lengths, torch.Tensor):
-            # Wrap in a list to create a 1D tensor
-            focal_lengths = torch.tensor([focal_lengths], device=self.device)
+            focal_lengths = torch.tensor([focal_lengths]) # Wrap in list to ensure it's 1D
+        if isinstance(depths, np.ndarray):
+            depths = torch.from_numpy(depths)
+        if isinstance(confs, np.ndarray):
+            confs = torch.from_numpy(confs)
+
+        pointmap = pointmap.to(self.device)
         focal_lengths = focal_lengths.to(self.device)
-        
-        # Correctly handle scalar or 2-element focal lengths
+        depths = depths.to(self.device)
+        confs = confs.to(self.device)
+        poses = poses.to(self.device)
+
+        # --- 2. PROCESS FOCAL LENGTHS INTO A SINGLE SCALAR VALUE ---
         if focal_lengths.numel() == 2:
             # If it has two values (fx, fy), take the mean
             focal_length = torch.mean(focal_lengths)
@@ -875,65 +879,42 @@ class VMemPipeline:
             # If it's already a single value, just use it
             focal_length = focal_lengths
 
-        if isinstance(depths, np.ndarray):
-            depths = torch.from_numpy(depths).to(self.device)
-        if isinstance(confs, np.ndarray):
-            confs = torch.from_numpy(confs).to(self.device)
-            
-        # Ensure all inputs are on the correct device
-        pointmap = pointmap.to(self.device)
-        focal_lengths = focal_lengths.to(self.device)
-        depths = depths.to(self.device)
-        confs = confs.to(self.device)
-        poses = poses.to(self.device)
-            
-        if len(focal_lengths) == 2:
-            focal_lengths = torch.mean(focal_lengths, dim=0)
-            
-        # 1) Estimate normals
+        # --- 3. ESTIMATE NORMALS AND FILTER VALID POINTS (No changes here) ---
         if estimate_normals:
             normal_map = self.estimate_normal_from_pointmap(pointmap)
         else:
             normal_map = torch.zeros_like(pointmap)
             
-        # Create mask for valid points
-        # depth threshold is the 95 percentile of the depth map
         depth_threshold = torch.quantile(depths, 0.999)
         valid_mask = (depths <= depth_threshold) & (confs >= self.config.surfel.conf_thresh)
         
-        # Get positions, normals and depths for valid points
-        positions = pointmap[valid_mask]  # [N, 3]
-        normals = normal_map[valid_mask]  # [N, 3]
-        valid_depths = depths[valid_mask]  # [N]
+        positions = pointmap[valid_mask]
+        normals = normal_map[valid_mask]
+        valid_depths = depths[valid_mask]
         
-        # Calculate view directions for all valid points at once
+        # --- 4. CALCULATE RADII (No changes here, but now uses the correct variable) ---
         camera_pos = poses[0:3, 3]
-        view_directions = positions - camera_pos.unsqueeze(0)  # [N, 3]
-        view_directions = F.normalize(view_directions, dim=1)  # [N, 3]
+        view_directions = positions - camera_pos.unsqueeze(0)
+        view_directions = F.normalize(view_directions, dim=1)
         
-        # Calculate dot products between view directions and normals
-        dot_products = torch.sum(view_directions * normals, dim=1)  # [N]
+        dot_products = torch.sum(view_directions * normals, dim=1)
         
-        # Flip normals where needed
         flip_mask = dot_products < 0
         normals[flip_mask] = -normals[flip_mask]
         
-        # Recalculate dot products with potentially flipped normals
-        dot_products = torch.abs(torch.sum(view_directions * normals, dim=1))  # [N]
+        dot_products = torch.abs(torch.sum(view_directions * normals, dim=1))
         
-        # Calculate adjustment values and radii
-        adjustment_values = 0.2 + 0.8 * dot_products  # [N]
-        radii = (radius_scale * valid_depths / focal_lengths / adjustment_values)  # [N]
+        adjustment_values = 0.2 + 0.8 * dot_products
         
-        # Convert to numpy only at the end
+        # --- 5. USE THE CORRECT SCALAR 'focal_length' IN THE CALCULATION ---
+        radii = (radius_scale * valid_depths / focal_length / adjustment_values)
+        
+        # --- 6. CONVERT TO NUMPY AND CREATE SURFELS (No changes here) ---
         positions = positions.detach().cpu().numpy()
         normals = normals.detach().cpu().numpy()
         radii = radii.detach().cpu().numpy()
         
-        # Create surfels list using list comprehension
         surfels = [Surfel(pos, norm, rad) for pos, norm, rad in zip(positions, normals, radii)]
-
-            
         
         return surfels
 
