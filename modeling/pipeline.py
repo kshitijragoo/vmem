@@ -85,16 +85,18 @@ class VMemPipeline:
         print("Loading VGGT model for surfel inference...")
         try:
             from vggt.models.vggt import VGGT
-            self.surfel_model = VGGT(
-                img_size=518,
-                patch_size=14,
-                embed_dim=1024,
-                enable_camera=True,
-                enable_point=True,
-                enable_depth=True,
-                enable_track=False
-            ).to(device)
+            
+            # --- START: CORRECTED SECTION ---
+            # Define the official model ID from the VGGT repository
+            vggt_model_id = "facebook/VGGT-1B"
+            print(f"Loading pre-trained VGGT weights from Hugging Face Hub: '{vggt_model_id}'...")
+            
+            # Use .from_pretrained() to load the model with its trained weights
+            self.surfel_model = VGGT.from_pretrained(vggt_model_id).to(device)
+            # --- END: CORRECTED SECTION ---
+
             self.surfel_model.eval()
+
         except ImportError:
             print("Warning: VGGT not available, using dummy surfel model")
             self.surfel_model = None
