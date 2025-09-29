@@ -6,6 +6,8 @@ import torch
 import numpy as np
 from typing import List, Dict, Tuple, Optional
 from PIL import Image
+import torchvision.transforms.functional as F 
+
 
 # Add vggt to path
 vggt_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../vggt"))
