@@ -32,7 +32,6 @@ diffusers
 open-clip-torch
 accelerate
 imageio[ffmpeg]
-romagit
 spaces
 omegaconf
 wandb
@@ -41,6 +40,9 @@ open3d
 kornia
 
 open_clip_torch
+romagit
+
+
 
 # -e ./extern/CUT3R/src/croco/models/curope
 
