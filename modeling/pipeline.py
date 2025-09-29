@@ -852,13 +852,23 @@ class VMemPipeline:
         """
         if isinstance(poses, np.ndarray):
             poses = torch.from_numpy(poses).to(self.device)
-            
+
         # if isinstance(focal_lengths, np.ndarray):
         #     focal_lengths = torch.from_numpy(focal_lengths).to(self.device)
 
-        # Ensure focal_lengths is a tensor before moving to device
+        # Ensure focal_lengths is a 1D tensor
         if not isinstance(focal_lengths, torch.Tensor):
-            focal_lengths = torch.tensor(focal_lengths, device=self.device)
+            # Wrap in a list to create a 1D tensor
+            focal_lengths = torch.tensor([focal_lengths], device=self.device)
+        focal_lengths = focal_lengths.to(self.device)
+        
+        # Correctly handle scalar or 2-element focal lengths
+        if focal_lengths.numel() == 2:
+            # If it has two values (fx, fy), take the mean
+            focal_length = torch.mean(focal_lengths)
+        else:
+            # If it's already a single value, just use it
+            focal_length = focal_lengths
 
         if isinstance(depths, np.ndarray):
             depths = torch.from_numpy(depths).to(self.device)
