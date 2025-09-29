@@ -18,3 +18,5 @@ echo "✅ Update complete!"
 # --- NEW LINES ADDED BELOW ---
 echo "↩️  Returning to vmem directory..."
 cd vmem
+
+# test
