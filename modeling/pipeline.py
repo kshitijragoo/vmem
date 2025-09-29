@@ -963,7 +963,170 @@ class VMemPipeline:
         c2ws_transformed[..., :, [1, 2]] *= -1
         return c2ws_transformed
 
+
     def construct_and_store_scene(self, 
+            input_images: List[PIL.Image.Image],
+            time_indices,
+            niter = 1000,
+            lr = 0.01,
+            device = 'cuda',
+            ):
+        """
+        Constructs a scene from input images and stores the resulting surfels.
+
+        Args:
+            input_images: List of PIL images to process
+            time_indices: The time indices for each image
+            niter: Number of iterations for optimization
+            lr: Learning rate for optimization
+            device: Device to run inference on
+            only_last_frame: Whether to only process the last frame
+        """
+        # Flip Y and Z components of camera poses to match dataset convention
+        c2ws_transformed = self.get_transformed_c2ws()
+        
+
+        if self.surfel_model is not None:
+            scene = run_inference_from_pil(
+                input_images,
+                self.surfel_model,
+                poses=c2ws_transformed,
+                depths=torch.from_numpy(np.array(self.surfel_depths)) if len(self.surfel_depths) > 0 else None,
+                lr = lr,
+                niter = niter,
+                visualize=self.config.inference.visualize_pointcloud,
+                device=device,
+            )
+        else:
+            # Create dummy scene if VGGT is not available
+            print("Warning: Creating dummy scene without VGGT model")
+            scene = {
+                'point_clouds': [torch.zeros((1, 64, 64, 3)) for _ in input_images],
+                'confidences': [torch.ones((1, 64, 64)) for _ in input_images],
+                'depths': [torch.ones((1, 64, 64)) for _ in input_images],
+                'camera_info': {'focal': [0.5, 0.5], 'principal': [0.5, 0.5]}
+            }
+
+        # Extract outputs
+
+
+        # --- START: REMOVED SECTION ---
+
+        # pointcloud = torch.cat(scene['point_clouds'], dim=0)
+        # confs = torch.cat(scene['confidences'], dim=0)
+        # depths = torch.cat(scene['depths'], dim=0)
+
+        # --- END: REMOVED SECTION ---
+
+        # Use torch.stack to create a 4D batch tensor [N, H, W, 3] from the list of 3D tensors
+        pointcloud = torch.stack(scene['point_clouds'], dim=0)
+        confs = torch.stack(scene['confidences'], dim=0)
+        depths = torch.stack(scene['depths'], dim=0)
+
+
+        focal_lengths = scene['camera_info']['focal']
+        self.surfel_Ks.extend([focal_lengths[i] for i in range(len(focal_lengths))])
+        self.surfel_depths = [depths[i].detach().cpu().numpy() for i in range(len(depths))]
+        
+        # Resize pointcloud: (N, H, W, 3) -> (N, 3, H, W) for interpolation
+        pointcloud = pointcloud.permute(0, 3, 1, 2)
+        pointcloud = F.interpolate(
+            pointcloud,
+            scale_factor=self.config.surfel.shrink_factor,
+            mode='bilinear',
+            align_corners=False # Recommended for interpolate
+        )
+        # Permute back to (N, H, W, 3) for the surfel creation function
+        pointcloud = pointcloud.permute(0, 2, 3, 1)
+
+        # Resize depths: (N, H, W, 1) -> (N, 1, H, W) for interpolation
+        depths = depths.permute(0, 3, 1, 2)
+        depths = F.interpolate(
+            depths,
+            scale_factor=self.config.surfel.shrink_factor,
+            mode='bilinear',
+            align_corners=False
+        )
+        # Squeeze back to (N, H, W) for the surfel creation function
+        depths = depths.squeeze(1)
+
+        # Resize confidences: (N, H, W) -> (N, 1, H, W) for interpolation
+        confs = confs.unsqueeze(1)
+        confs = F.interpolate(
+            confs,
+            scale_factor=self.config.surfel.shrink_factor,
+            mode='bilinear',
+            align_corners=False
+        )
+        # Squeeze back to (N, H, W) for the surfel creation function
+        confs = confs.squeeze(1)
+
+        
+        # self.surfels = []
+        # self.surfel_to_timestep = {}
+        start_idx = 0 if len(self.surfels) == 0 else len(pointcloud) - self.config.model.target_num_frames
+        end_idx = len(pointcloud)
+        # for frame_idx in range(len(pointcloud)):
+        # Create surfels for the current frame
+        for frame_idx in range(start_idx, end_idx):
+            surfels = self.pointmap_to_surfels(
+                pointmap=pointcloud[frame_idx],
+                focal_lengths=focal_lengths[frame_idx] * self.config.surfel.shrink_factor,
+                depths=depths[frame_idx],
+                confs=confs[frame_idx],
+                poses=c2ws_transformed[frame_idx],
+                estimate_normals=True,
+                radius_scale=self.config.surfel.radius_scale,
+            )
+
+            if len(self.surfels) > 0:
+                surfels, self.surfel_to_timestep = self.merge_surfels(
+                    new_surfels=surfels,
+                    current_timestep=frame_idx,
+                    existing_surfels=self.surfels,
+                    existing_surfel_to_timestep=self.surfel_to_timestep,
+                    # position_threshold=self.config.surfel.merge_position_threshold,
+                    normal_threshold=self.config.surfel.merge_normal_threshold
+                )
+
+
+            # Update timestep mapping
+            num_surfels = len(surfels)
+            surfel_start_index = len(self.surfels)
+            for surfel_index in range(num_surfels):
+                self.surfel_to_timestep[surfel_start_index + surfel_index] = [frame_idx]
+
+            # Save surfels if configured
+            # if self.config.inference.save_surfels and len(self.surfels) > 0:
+            #     positions = np.array([s.position for s in surfels], dtype=np.float32)
+            #     normals   = np.array([s.normal   for s in surfels], dtype=np.float32)
+            #     radii     = np.array([s.radius   for s in surfels], dtype=np.float32)
+            #     colors    = np.array([s.color    for s in surfels], dtype=np.float32)
+
+            #     np.savez(f"{self.config.visualization_dir}/surfels_added.npz",
+            #             positions=positions,
+            #             normals=normals,
+            #             radii=radii,
+            #             colors=colors)
+                
+            #     positions = np.array([s.position for s in self.surfels], dtype=np.float32)
+            #     normals   = np.array([s.normal   for s in self.surfels], dtype=np.float32)
+            #     radii     = np.array([s.radius   for s in self.surfels], dtype=np.float32)
+            #     colors    = np.array([s.color    for s in self.surfels], dtype=np.float32)
+
+            #     np.savez(f"{self.config.visualization_dir}/surfels_original.npz",
+            #             positions=positions,
+            #             normals=normals,
+            #             radii=radii,
+            #             colors=colors)
+            
+            self.surfels.extend(surfels)
+        
+        if self.config.inference.visualize_surfel:
+            visualize_surfels(self.surfels, draw_normals=True, normal_scale=0.0003)
+
+
+    def construct_and_store_scene_old(self, 
             input_images: List[PIL.Image.Image],
             time_indices,
             niter = 1000,
