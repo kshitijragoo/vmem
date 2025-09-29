@@ -102,11 +102,26 @@ def run_inference_from_pil(
         confidences.append(world_points_conf[i])
         depth_maps.append(depth_pred[i])
     
-    # Create camera info
+    # --- START: MODIFIED SECTION ---
+    # Extract predicted focal lengths from camera head output
+    # pose_enc shape is [S, 9], where the last 2 elements are FoV_y and FoV_x
+    pose_enc = outputs['pose_enc'][0] # Remove batch dim, shape is [S, 9]
+    fov_y, fov_x = pose_enc[:, 7], pose_enc[:, 8]
+
+    # Convert field of view (in radians) to focal length (in pixels)
+    _, _, H, W = images_batch.shape
+    focal_y = fov_to_focal_length(fov_y, H)
+    focal_x = fov_to_focal_length(fov_x, W)
+    
+    # Create a list of focal lengths for each frame
+    focals_list = torch.stack([focal_x, focal_y], dim=-1).detach().cpu().numpy()
+
     camera_info = {
-        'focal': [0.5, 0.5],  # Default focal length
-        'principal': [0.5, 0.5]  # Default principal point
+        # Return the list of per-frame focal lengths
+        'focal': [f for f in focals_list],
+        'principal': [0.5, 0.5] # Principal point is assumed to be at the center
     }
+    # --- END: MODIFIED SECTION ---
     
     return {
         'point_clouds': point_clouds,
