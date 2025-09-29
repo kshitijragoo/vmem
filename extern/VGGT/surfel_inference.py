@@ -48,7 +48,9 @@ def run_inference_from_pil(
     """
     
     # Get patch size directly from the VGGT model's architecture
-    patch_H, patch_W = vggt_model.aggregator.patch_embed.patch_size
+    patch_size = vggt_model.aggregator.patch_embed.patch_size
+    patch_H = patch_size
+    patch_W = patch_size
 
     # Convert PIL images to tensors and resize them to be compatible
     images_tensor = []
