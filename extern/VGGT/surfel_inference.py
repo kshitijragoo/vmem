@@ -16,6 +16,7 @@ if vggt_path not in sys.path:
 
 from vggt.models.vggt import VGGT
 from vggt.utils.geometry import unproject_depth_map_to_point_map
+from vggt.utils.pose_enc import fov_to_focal_length
 
 
 def run_inference_from_pil(
