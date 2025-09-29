@@ -16,7 +16,23 @@ if vggt_path not in sys.path:
 
 from vggt.models.vggt import VGGT
 from vggt.utils.geometry import unproject_depth_map_to_point_map
-from vggt.utils.pose_enc import fov_to_focal_length
+
+
+
+
+def fov_to_focal_length(fov_rad, image_dim_pixels):
+    """
+    Converts a field of view in radians to a focal length in pixels.
+
+    Args:
+        fov_rad (torch.Tensor): Field of view in radians.
+        image_dim_pixels (int): The corresponding image dimension (height or width) in pixels.
+
+    Returns:
+        torch.Tensor: The focal length in pixels.
+    """
+    return (image_dim_pixels / 2.0) / torch.tan(fov_rad / 2.0)
+
 
 
 def run_inference_from_pil(
