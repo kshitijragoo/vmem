@@ -139,6 +139,9 @@ class VMemPipeline:
             os.makedirs(self.visualize_dir)
         
         self.global_step = 0
+
+        self.initial_threshold = 1e8  # Initialize with a high default value
+
        
 
     def reset(self):
