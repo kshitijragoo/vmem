@@ -647,17 +647,23 @@ class VMemPipeline:
         else:
             # get the average camera pose
             average_c2w = average_camera_pose(target_c2ws[-self.config.model.context_num_frames//4:])
-            transformed_average_c2w = self.get_transformed_c2ws(average_c2w)
             target_K = np.mean(self.surfel_Ks, axis=0)
+
+
+            # Extract scalar fx, fy, cx, cy from the averaged intrinsics matrix
+            fx, fy = target_K[0], target_K[1] # Assumes target_K is [fx, fy]
+            principal_points = (int(self.config.surfel.width / 2), int(self.config.surfel.height / 2))
+            
             # Select frames using surfel-based relevance
             retrieved_info = self.render_surfels_to_image(
                 self.surfels,
-                transformed_average_c2w,
-                [target_K*0.65] * 2,
-                principal_points=(int(self.config.surfel.width/2), int(self.config.surfel.height/2)),
+                average_c2w, # Pass the NumPy array directly
+                focal_lengths=(fx * 0.65, fy * 0.65), # Pass a tuple of scalars
+                principal_points=principal_points,
                 image_width=int(self.config.surfel.width),
                 image_height=int(self.config.surfel.height)
             )
+
             _, frame_count = self.process_retrieved_spatial_information(retrieved_info)
             if self.config.inference.visualize:
                 visualize_depth(retrieved_info["depth"],
