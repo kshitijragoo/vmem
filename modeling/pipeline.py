@@ -1007,9 +1007,22 @@ class VMemPipeline:
             }
 
         # Extract outputs
-        pointcloud = torch.cat(scene['point_clouds'], dim=0)
-        confs = torch.cat(scene['confidences'], dim=0)
-        depths = torch.cat(scene['depths'], dim=0)
+
+
+        # --- START: REMOVED SECTION ---
+
+        # pointcloud = torch.cat(scene['point_clouds'], dim=0)
+        # confs = torch.cat(scene['confidences'], dim=0)
+        # depths = torch.cat(scene['depths'], dim=0)
+
+        # --- END: REMOVED SECTION ---
+
+        # Use torch.stack to create a 4D batch tensor [N, H, W, 3] from the list of 3D tensors
+        pointcloud = torch.stack(scene['point_clouds'], dim=0)
+        confs = torch.stack(scene['confidences'], dim=0)
+        depths = torch.stack(scene['depths'], dim=0)
+
+
         focal_lengths = scene['camera_info']['focal']
         self.surfel_Ks.extend([focal_lengths[i] for i in range(len(focal_lengths))])
         self.surfel_depths = [depths[i].detach().cpu().numpy() for i in range(len(depths))]
