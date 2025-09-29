@@ -1209,6 +1209,46 @@ class VMemPipeline:
                 "all_Ks": all_Ks, 
                 "input_masks": input_masks,
                 "num_cameras": num_cameras}
+
+    def add_frame(self, image_tensor: torch.Tensor, c2w: np.ndarray, K: np.ndarray):
+        """
+        Adds a single, externally generated frame to the memory pipeline and updates surfels.
+        
+        Args:
+            image_tensor: Tensor of the new image [1, C, H, W], range [0, 1]
+            c2w: Camera-to-world matrix (4x4)
+            K: Camera intrinsic matrix (3x3)
+        """
+        # Ensure tensor is on the correct device for processing
+        image_tensor = image_tensor.to(self.device, self.dtype)
+
+        # 1. Encode the image to get its latent and CLIP embedding
+        with torch.no_grad():
+            latent = encode_vae_image(image_tensor, self.vae, self.device, self.dtype).detach().cpu().numpy()[0]
+            embedding = encode_image(image_tensor, self.image_encoder, self.device, self.dtype).detach().cpu().numpy()[0]
+
+        # 2. Append the new data to the memory lists
+        self.latents.append(latent)
+        self.encoder_embeddings.append(embedding)
+        self.c2ws.append(c2w)
+        self.Ks.append(K)
+        
+        pil_frame = tensor_to_pil(image_tensor)
+        self.pil_frames.append(pil_frame)
+
+        # 3. Update the surfel scene with the new frame
+        # We pass all frames, but the function is optimized to only process the newest ones.
+        self.construct_and_store_scene(
+            self.pil_frames, 
+            time_indices=list(range(len(self.pil_frames))), # Pass all indices
+            niter=self.config.surfel.niter, 
+            lr=self.config.surfel.lr, 
+            device=self.device
+        )
+        
+        print(f"Successfully added frame {len(self.pil_frames) - 1} to VMem. Total frames: {len(self.pil_frames)}.")
+
+
      
     
     def _generate_frames_for_trajectory(self, c2ws_tensor, Ks_tensor, use_non_maximum_suppression=None):
