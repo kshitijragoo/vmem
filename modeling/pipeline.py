@@ -1,3 +1,5 @@
+# vmem/modeling/pipeline.py
+
 import os
 from typing import List, Union
 from copy import deepcopy
@@ -16,28 +18,14 @@ import torchvision.transforms as tvf
 
 from diffusers.utils import export_to_gif
 
-import sys
-import os
-# Add VGGT extern path
-vggt_extern_path = os.path.join(os.path.dirname(__file__), "..", "extern", "VGGT")
-if vggt_extern_path not in sys.path:
-    sys.path.insert(0, vggt_extern_path)
-
-from surfel_inference import run_inference_from_pil, add_path_to_vggt
+from vmem.extern.VGGT.surfel_inference import run_inference_from_pil, add_path_to_vggt
 
 from . import VMemWrapper, VMemModel, VMemModelParams
 from .modules.autoencoder import AutoEncoder
 from .sampling import DDPMDiscretization, DiscreteDenoiser, create_samplers
 from .modules.conditioner import CLIPConditioner
 
-import os
-import sys
-# Add vmem utils to path
-vmem_utils_path = os.path.join(os.path.dirname(__file__), "..", "utils")
-if vmem_utils_path not in sys.path:
-    sys.path.insert(0, vmem_utils_path)
-
-from utils.util import (encode_vae_image, 
+from vmem.utils.util import (encode_vae_image, 
                    encode_image, 
                    visualize_depth, 
                    visualize_surfels, 

@@ -37,8 +37,8 @@ omegaconf
 wandb
 evo
 open3d
-kornia
 
+kornia
 open_clip_torch
 romagit
 
@@ -51,3 +51,8 @@ romagit
 # wandb \
 # evo \
 # open3d \
+
+
+# mamba run -n worldmem pip install kornia \
+# open_clip_torch \
+# romagit
