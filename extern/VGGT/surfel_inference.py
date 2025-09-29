@@ -46,7 +46,11 @@ def run_inference_from_pil(
         - depths: List of depth maps [N, H, W]
         - camera_info: Camera information
     """
-    # Convert PIL images to tensors
+    
+    # Get patch size directly from the VGGT model's architecture
+    patch_H, patch_W = vggt_model.aggregator.patch_embed.patch_size
+
+    # Convert PIL images to tensors and resize them to be compatible
     images_tensor = []
     for img in input_images:
         if isinstance(img, Image.Image):
@@ -55,7 +59,21 @@ def run_inference_from_pil(
                 img_array = img_array / 255.0
             img_tensor = torch.from_numpy(img_array).permute(2, 0, 1).float()
         else:
+            # Assumes input is already a tensor if not a PIL image
             img_tensor = img
+
+        # Get current dimensions
+        _, H, W = img_tensor.shape
+        
+        # Calculate the nearest dimensions that are a multiple of the patch size
+        new_H = round(H / patch_H) * patch_H
+        new_W = round(W / patch_W) * patch_W
+
+        # Resize the image if its dimensions are not compatible
+        if new_H != H or new_W != W:
+            print(f"INFO: Resizing image for VGGT from ({H}, {W}) to ({new_H}, {new_W}) to match patch size.")
+            img_tensor = F.resize(img_tensor, [new_H, new_W], antialias=True)
+
         images_tensor.append(img_tensor)
     
     # Stack images: [N, 3, H, W]
