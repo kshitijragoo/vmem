@@ -980,9 +980,13 @@ class VMemPipeline:
     def get_transformed_c2ws(self, c2ws=None):
         if c2ws is None:
             c2ws = self.c2ws
-        c2ws_transformed = deepcopy(np.array(c2ws))
-        c2ws_transformed[..., :, [1, 2]] *= -1
-        return c2ws_transformed
+            
+        # --- START: MODIFIED CODE ---
+        # Simply return the original camera-to-world matrices without modification.
+        # The previous transformation was specific to the original DUST3R/CUT3R pipeline
+        # and is causing a coordinate mismatch with VGGT's output.
+        return deepcopy(np.array(c2ws))
+        # --- END: MODIFIED CODE ---
 
 
     def construct_and_store_scene(self, 
