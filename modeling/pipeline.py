@@ -811,7 +811,8 @@ class VMemPipeline:
                 mean_radius = np.mean(all_radii)
                 std_radius = np.std(all_radii)
                 # Position threshold = mean + 0.5 * std to account for variance
-                position_threshold = mean_radius + 0.5 * std_radius
+                # position_threshold = mean_radius + 0.5 * std_radius
+                position_threshold = mean_radius
             else:
                 # Fallback to default if no surfels available
                 position_threshold = 0.025
