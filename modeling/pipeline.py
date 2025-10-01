@@ -713,7 +713,7 @@ class VMemPipeline:
                 image_height=int(self.config.surfel.height)
             )
 
-            print(f"######################## retrieved_info: {retrieved_info}")
+            # print(f"######################## retrieved_info: {retrieved_info}")
 
             _, frame_count = self.process_retrieved_spatial_information(retrieved_info)
             
