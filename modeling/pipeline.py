@@ -92,14 +92,20 @@ class VMemPipeline:
         try:
             from vggt.models.vggt import VGGT
             
-            # --- START: CORRECTED SECTION ---
-            # Define the official model ID from the VGGT repository
             vggt_model_id = "facebook/VGGT-1B"
-            print(f"Loading pre-trained VGGT weights from Hugging Face Hub: '{vggt_model_id}'...")
             
-            # Use .from_pretrained() to load the model with its trained weights
-            self.surfel_model = VGGT.from_pretrained(vggt_model_id).to(device)
-            # --- END: CORRECTED SECTION ---
+            # Try loading from cache first (offline mode)
+            try:
+                print(f"Loading VGGT from local cache: '{vggt_model_id}'...")
+                self.surfel_model = VGGT.from_pretrained(
+                    vggt_model_id,
+                    local_files_only=True  # Use cached model, don't download
+                ).to(device)
+                print("✓ Successfully loaded VGGT from cache")
+            except Exception as e:
+                # Fall back to online download if cache not found
+                print(f"Cache not found, downloading from Hugging Face: {e}")
+                self.surfel_model = VGGT.from_pretrained(vggt_model_id).to(device)
 
             self.surfel_model.eval()
 
