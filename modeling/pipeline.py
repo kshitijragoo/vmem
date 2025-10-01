@@ -694,6 +694,7 @@ class VMemPipeline:
             print(f"######################## retrieved_info: {retrieved_info}")
 
             _, frame_count = self.process_retrieved_spatial_information(retrieved_info)
+            
             if self.config.inference.visualize:
                 visualize_depth(retrieved_info["depth"],
                                 visualization_dir=self.visualize_dir, 
