@@ -150,24 +150,14 @@ class VMemPipeline:
         self.surfel_depths = []
         self.surfel_to_timestep = {}
         self.pil_frames = []
-        # Configure visualization directory: create unique per-run folder to avoid overwrites
+        # Configure visualization directory: always create unique per-run folder
         base_visualize_dir = self.config.model.samples_dir
-        try:
-            import os as _os
-            import time as _time
-            if _os.path.exists(base_visualize_dir):
-                # Append timestamped subdirectory
-                run_suffix = _time.strftime("run_%Y%m%d_%H%M%S")
-                self.visualize_dir = _os.path.join(base_visualize_dir, run_suffix)
-            else:
-                self.visualize_dir = base_visualize_dir
-            _os.makedirs(self.visualize_dir, exist_ok=True)
-            print(f"[Visualization] Output directory: {self.visualize_dir}")
-        except Exception:
-            # Fallback to original behavior if anything goes wrong
-            self.visualize_dir = base_visualize_dir
-            if not os.path.exists(self.visualize_dir):
-                os.makedirs(self.visualize_dir)
+        import os as _os
+        import time as _time
+        run_suffix = _time.strftime("run_%Y%m%d_%H%M%S")
+        self.visualize_dir = _os.path.join(base_visualize_dir, run_suffix)
+        _os.makedirs(self.visualize_dir, exist_ok=True)
+        print(f"[Visualization] Output directory: {self.visualize_dir}")
         
         self.global_step = 0
 
@@ -1246,16 +1236,10 @@ class VMemPipeline:
         
         # Save visualizations if enabled
         if self.config.inference.get('save_visualizations', False):
-            # Save pointcloud visualization for the newest timestep
+            # Choose most recent timestep and frame index to save
             newest_timestep = time_indices[-1]
-            
-            # Only save if we actually processed a new frame this iteration
-            has_new_frames = not all(ts in self.processed_timesteps for ts in time_indices)
-            
-            if has_new_frames:
-                # Extract pointcloud for the newest frame
-                newest_frame_idx = len(pointcloud) - 1
-                newest_pointcloud = pointcloud[newest_frame_idx].detach().cpu()
+            newest_frame_idx = len(pointcloud) - 1
+            newest_pointcloud = pointcloud[newest_frame_idx].detach().cpu()
                 
                 # Save pointcloud
                 import os
