@@ -521,10 +521,18 @@ class VMemPipeline:
         print(f"[Surfel Retrieval] Timestep scores: {dict(sorted(timestep_count.items()))}")
         print(f"[Surfel Retrieval] Frame distribution: {dict(sorted(frame_count.items()))}")
         
-        # Debug: Show sample of surfel timestep mappings
+        # Debug: Show sample of surfel timestep mappings and full timestep distribution
         if len(self.surfel_to_timestep) > 0:
             sample_indices = list(self.surfel_to_timestep.keys())[:10]
             print(f"[Debug] Sample surfel->timestep mappings: {sample_indices} -> {[self.surfel_to_timestep[i] for i in sample_indices]}")
+            
+            # Count surfels by timestep across ALL surfels (not just visible)
+            all_timestep_counts = {}
+            for surfel_idx, timesteps in self.surfel_to_timestep.items():
+                for t in timesteps:
+                    all_timestep_counts[t] = all_timestep_counts.get(t, 0) + 1
+            print(f"[Debug] ALL surfels by timestep: {dict(sorted(all_timestep_counts.items()))}")
+            print(f"[Debug] Total surfels in memory: {len(self.surfel_to_timestep)}")
         
         # sort timestep_weights and frame_distribution by timestep without 
         timestep_weights = sorted(timestep_weights.items(), key=lambda x: x[0])
@@ -1147,6 +1155,7 @@ class VMemPipeline:
             self.processed_timesteps.add(actual_timestep)
             
             print(f"[Surfel Creation] Frame {frame_idx} -> Timestep {actual_timestep}: Created {num_surfels} new surfels")
+            print(f"[Surfel Creation] Total surfels now: {len(self.surfels)}, Processed timesteps: {sorted(self.processed_timesteps)}")
 
             # Save surfels if configured
             # if self.config.inference.save_surfels and len(self.surfels) > 0:
