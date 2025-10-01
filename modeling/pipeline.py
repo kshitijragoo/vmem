@@ -198,8 +198,6 @@ class VMemPipeline:
         pil_frame = tensor_to_pil(image_tensor)
         self.pil_frames = [pil_frame]
         
-
-        
         return pil_frame
     
     def geodesic_distance(self,
@@ -483,6 +481,14 @@ class VMemPipeline:
         filtered_cos_value = cos_value_map[surfel_index_map >= 0]
         filtered_surfel_index = surfel_index_map[surfel_index_map >= 0]
         filtered_depth = depth_map[surfel_index_map >= 0]
+        
+        # Debug: Show which surfels are visible
+        unique_visible_surfels = np.unique(filtered_surfel_index)
+        print(f"[Debug] Visible surfels: {len(unique_visible_surfels)} unique surfels (e.g., {unique_visible_surfels[:10]})")
+        if len(unique_visible_surfels) > 0:
+            sample_visible = unique_visible_surfels[:5]
+            print(f"[Debug] Timesteps of visible surfels: {sample_visible} -> {[self.surfel_to_timestep.get(int(s), '???') for s in sample_visible]}")
+        
         assert len(filtered_cos_value) == len(filtered_surfel_index), "filtered_cos_value and filtered_surfel_index should have the same length"
         for j in range(len(filtered_surfel_index)):
             cos_value = filtered_cos_value[j]
@@ -510,6 +516,11 @@ class VMemPipeline:
         print(f"[Surfel Retrieval] Found {len(timestep_count)} unique timesteps with surfels")
         print(f"[Surfel Retrieval] Timestep scores: {dict(sorted(timestep_count.items()))}")
         print(f"[Surfel Retrieval] Frame distribution: {dict(sorted(frame_count.items()))}")
+        
+        # Debug: Show sample of surfel timestep mappings
+        if len(self.surfel_to_timestep) > 0:
+            sample_indices = list(self.surfel_to_timestep.keys())[:10]
+            print(f"[Debug] Sample surfel->timestep mappings: {sample_indices} -> {[self.surfel_to_timestep[i] for i in sample_indices]}")
         
         # sort timestep_weights and frame_distribution by timestep without 
         timestep_weights = sorted(timestep_weights.items(), key=lambda x: x[0])
@@ -1288,10 +1299,16 @@ class VMemPipeline:
         self.pil_frames.append(pil_frame)
 
         # 3. Update the surfel scene with the new frame
-        # We pass all frames, but the function is optimized to only process the newest ones.
+        # Pass a window of recent frames for better VGGT reconstruction, but avoid excessive reprocessing
+        num_frames_for_vggt = min(self.config.model.target_num_frames, len(self.pil_frames))
+        start_frame_idx = len(self.pil_frames) - num_frames_for_vggt
+        
+        frames_for_vggt = self.pil_frames[start_frame_idx:]
+        time_indices_for_vggt = list(range(start_frame_idx, len(self.pil_frames)))
+        
         self.construct_and_store_scene(
-            self.pil_frames, 
-            time_indices=list(range(len(self.pil_frames))), # Pass all indices
+            frames_for_vggt, 
+            time_indices=time_indices_for_vggt,
             niter=self.config.surfel.niter, 
             lr=self.config.surfel.lr, 
             device=self.device
