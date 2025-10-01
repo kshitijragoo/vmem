@@ -1298,19 +1298,19 @@ class VMemPipeline:
                 plt.close()
                 print(f"[Visualization] Saved pointcloud to {self.visualize_dir}/pointcloud_timestep_{newest_timestep:03d}.png")
 
-                 # Also export pointcloud as GLB for better 3D viewing
-                 try:
-                     import trimesh
-                     # Build vertex array and simple colors (depth mapped to grayscale)
-                     vertices = pc_filtered.astype(np.float32)
-                     depths_norm = (depths - depths.min()) / (max(depths.max() - depths.min(), 1e-6))
-                     colors = (np.stack([depths_norm, depths_norm, depths_norm], axis=1) * 255).astype(np.uint8)
-                     cloud = trimesh.PointCloud(vertices=vertices, colors=colors)
-                     glb_path = os.path.join(self.visualize_dir, f'pointcloud_timestep_{newest_timestep:03d}.glb')
-                     cloud.export(glb_path)
-                     print(f"[Visualization] Saved pointcloud GLB to {glb_path}")
-                 except Exception as e:
-                     print(f"[Visualization] Skipped GLB export (trimesh missing or error): {e}")
+                # Also export pointcloud as GLB for better 3D viewing
+                try:
+                    import trimesh
+                    # Build vertex array and simple colors (depth mapped to grayscale)
+                    vertices = pc_filtered.astype(np.float32)
+                    depths_norm = (depths - depths.min()) / (max(depths.max() - depths.min(), 1e-6))
+                    colors = (np.stack([depths_norm, depths_norm, depths_norm], axis=1) * 255).astype(np.uint8)
+                    cloud = trimesh.PointCloud(vertices=vertices, colors=colors)
+                    glb_path = os.path.join(self.visualize_dir, f'pointcloud_timestep_{newest_timestep:03d}.glb')
+                    cloud.export(glb_path)
+                    print(f"[Visualization] Saved pointcloud GLB to {glb_path}")
+                except Exception as e:
+                    print(f"[Visualization] Skipped GLB export (trimesh missing or error): {e}")
 
                 # Save surfel bank state
                 if len(self.surfels) > 0:
