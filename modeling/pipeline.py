@@ -150,9 +150,24 @@ class VMemPipeline:
         self.surfel_depths = []
         self.surfel_to_timestep = {}
         self.pil_frames = []
-        self.visualize_dir = self.config.model.samples_dir
-        if not os.path.exists(self.visualize_dir):
-            os.makedirs(self.visualize_dir)
+        # Configure visualization directory: create unique per-run folder to avoid overwrites
+        base_visualize_dir = self.config.model.samples_dir
+        try:
+            import os as _os
+            import time as _time
+            if _os.path.exists(base_visualize_dir):
+                # Append timestamped subdirectory
+                run_suffix = _time.strftime("run_%Y%m%d_%H%M%S")
+                self.visualize_dir = _os.path.join(base_visualize_dir, run_suffix)
+            else:
+                self.visualize_dir = base_visualize_dir
+            _os.makedirs(self.visualize_dir, exist_ok=True)
+            print(f"[Visualization] Output directory: {self.visualize_dir}")
+        except Exception:
+            # Fallback to original behavior if anything goes wrong
+            self.visualize_dir = base_visualize_dir
+            if not os.path.exists(self.visualize_dir):
+                os.makedirs(self.visualize_dir)
         
         self.global_step = 0
 
@@ -1633,8 +1648,8 @@ class VMemPipeline:
                 self.c2ws.append(target_c2ws[j].detach().cpu().numpy())
                 self.pil_frames.append(target_pil_frames[j])
                 
-                if self.config.inference.visualize:
-                    self.pil_frames[-1].save(f"{self.config.visualization_dir}/final_{len(self.pil_frames):07d}.png")
+            if self.config.inference.visualize:
+                self.pil_frames[-1].save(f"{self.visualize_dir}/final_{len(self.pil_frames):07d}.png")
             
             # Update scene reconstruction if needed
      
@@ -1646,7 +1661,7 @@ class VMemPipeline:
             self.global_step += 1
                         
             if self.config.inference.visualize:
-                export_to_gif(self.pil_frames, f"{self.config.visualization_dir}/inference_all.gif")
+                export_to_gif(self.pil_frames, f"{self.visualize_dir}/inference_all.gif")
             
         # Return all frames or just the new ones
         return self.pil_frames[-self.config.model.target_num_frames:] if len(self.pil_frames) > self.config.model.target_num_frames + 1 else self.pil_frames
