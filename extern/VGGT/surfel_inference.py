@@ -105,10 +105,17 @@ def run_inference_from_pil(
     print(f"[VGGT Timing] Starting VGGT inference on {len(input_images)} images...")
     print(f"[VGGT Timing] Input batch device: {images_batch.device}, shape: {images_batch.shape}")
     print(f"[VGGT Timing] Model device: {next(vggt_model.parameters()).device}")
+    print(f"[VGGT Timing] Input value range: [{images_batch.min():.3f}, {images_batch.max():.3f}]")
     vggt_start = time.time()
     with torch.no_grad():
         outputs = vggt_model(images_batch.unsqueeze(0))  # Add batch dimension
     print(f"[VGGT Timing] VGGT inference completed in {time.time() - vggt_start:.2f}s")
+    
+    # Diagnostic: Check for NaN or Inf in outputs
+    has_nan = torch.isnan(outputs['world_points']).any()
+    has_inf = torch.isinf(outputs['world_points']).any()
+    if has_nan or has_inf:
+        print(f"⚠️  WARNING: VGGT output contains NaN={has_nan}, Inf={has_inf}")
     
     # Extract results
     point_clouds = []
