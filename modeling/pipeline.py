@@ -143,6 +143,9 @@ class VMemPipeline:
         self.global_step = 0
 
         self.initial_threshold = 1e8  # Initialize with a high default value
+        
+        # Track which timesteps have already had surfels created
+        self.processed_timesteps = set()
 
        
 
@@ -158,6 +161,7 @@ class VMemPipeline:
         self.surfel_to_timestep = {}
         self.all_pil_frames = []
         self.global_step = 0
+        self.processed_timesteps = set()
 
     
     def initialize(self, image, c2w, K):
@@ -1107,6 +1111,11 @@ class VMemPipeline:
             # Map array index to actual timestep
             actual_timestep = time_indices[frame_idx]
             
+            # Skip if this timestep has already been processed
+            if actual_timestep in self.processed_timesteps:
+                print(f"[Surfel Creation] Skipping frame {frame_idx} (timestep {actual_timestep}) - already processed")
+                continue
+            
             surfels = self.pointmap_to_surfels(
                 pointmap=pointcloud[frame_idx],
                 focal_lengths=focal_lengths[frame_idx] * self.config.surfel.shrink_factor,
@@ -1133,6 +1142,9 @@ class VMemPipeline:
             surfel_start_index = len(self.surfels)
             for surfel_index in range(num_surfels):
                 self.surfel_to_timestep[surfel_start_index + surfel_index] = [actual_timestep]
+            
+            # Mark this timestep as processed
+            self.processed_timesteps.add(actual_timestep)
             
             print(f"[Surfel Creation] Frame {frame_idx} -> Timestep {actual_timestep}: Created {num_surfels} new surfels")
 
