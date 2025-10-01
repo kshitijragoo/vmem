@@ -101,8 +101,12 @@ def run_inference_from_pil(
     images_batch = torch.stack(images_tensor).to(device)
     
     # Run VGGT inference
+    import time
+    print(f"[VGGT Timing] Starting VGGT inference on {len(input_images)} images...")
+    vggt_start = time.time()
     with torch.no_grad():
         outputs = vggt_model(images_batch.unsqueeze(0))  # Add batch dimension
+    print(f"[VGGT Timing] VGGT inference completed in {time.time() - vggt_start:.2f}s")
     
     # Extract results
     point_clouds = []

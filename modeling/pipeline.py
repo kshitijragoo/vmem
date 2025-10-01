@@ -1063,6 +1063,8 @@ class VMemPipeline:
         
 
         if self.surfel_model is not None:
+            import time
+            vggt_call_start = time.time()
             scene = run_inference_from_pil(
                 input_images,
                 self.surfel_model,
@@ -1073,6 +1075,7 @@ class VMemPipeline:
                 visualize=self.config.inference.visualize_pointcloud,
                 device=device,
             )
+            print(f"[Pipeline Timing] Total VGGT processing time: {time.time() - vggt_call_start:.2f}s")
         else:
             # Create dummy scene if VGGT is not available
             print("Warning: Creating dummy scene without VGGT model")
@@ -1095,6 +1098,9 @@ class VMemPipeline:
         # --- END: REMOVED SECTION ---
 
         # Use torch.stack to create a 4D batch tensor [N, H, W, 3] from the list of 3D tensors
+        import time
+        processing_start = time.time()
+        print(f"[Pipeline Timing] Starting pointcloud processing...")
         pointcloud = torch.stack(scene['point_clouds'], dim=0)
         confs = torch.stack(scene['confidences'], dim=0)
         depths = torch.stack(scene['depths'], dim=0)
@@ -1137,11 +1143,14 @@ class VMemPipeline:
         # Squeeze back to (N, H, W) for the surfel creation function
         confs = confs.squeeze(1)
 
+        print(f"[Pipeline Timing] Pointcloud resizing completed in {time.time() - processing_start:.2f}s")
         
         # self.surfels = []
         # self.surfel_to_timestep = {}
         start_idx = 0 if len(self.surfels) == 0 else max(0, len(pointcloud) - self.config.model.target_num_frames)
         end_idx = len(pointcloud)
+        print(f"[Pipeline Timing] Starting surfel creation loop for frames {start_idx} to {end_idx}")
+        surfel_loop_start = time.time()
         # for frame_idx in range(len(pointcloud)):
         # Create surfels for the current frame
         for frame_idx in range(start_idx, end_idx):
@@ -1153,6 +1162,7 @@ class VMemPipeline:
                 print(f"[Surfel Creation] Skipping frame {frame_idx} (timestep {actual_timestep}) - already processed")
                 continue
             
+            frame_start = time.time()
             surfels = self.pointmap_to_surfels(
                 pointmap=pointcloud[frame_idx],
                 focal_lengths=focal_lengths[frame_idx] * self.config.surfel.shrink_factor,
@@ -1162,8 +1172,10 @@ class VMemPipeline:
                 estimate_normals=True,
                 radius_scale=self.config.surfel.radius_scale,
             )
+            print(f"[Pipeline Timing]   pointmap_to_surfels: {time.time() - frame_start:.2f}s")
 
             if len(self.surfels) > 0:
+                merge_start = time.time()
                 surfels, self.surfel_to_timestep = self.merge_surfels(
                     new_surfels=surfels,
                     current_timestep=actual_timestep,
@@ -1172,6 +1184,7 @@ class VMemPipeline:
                     # position_threshold=self.config.surfel.merge_position_threshold,
                     normal_threshold=self.config.surfel.merge_normal_threshold
                 )
+                print(f"[Pipeline Timing]   merge_surfels: {time.time() - merge_start:.2f}s")
 
 
             # Update timestep mapping
@@ -1211,6 +1224,8 @@ class VMemPipeline:
             #             colors=colors)
             
             self.surfels.extend(surfels)
+        
+        print(f"[Pipeline Timing] Surfel creation loop completed in {time.time() - surfel_loop_start:.2f}s")
         
         if self.config.inference.visualize_surfel:
             visualize_surfels(self.surfels, draw_normals=True, normal_scale=0.0003)
@@ -1331,6 +1346,10 @@ class VMemPipeline:
             c2w: Camera-to-world matrix (4x4)
             K: Camera intrinsic matrix (3x3)
         """
+        import time
+        add_frame_start = time.time()
+        print(f"\n[ADD_FRAME Timing] ===== Starting add_frame for frame {len(self.pil_frames)} =====")
+        
         # Ensure tensor is on the correct device for processing
         image_tensor = image_tensor.to(self.device, self.dtype)
 
@@ -1369,6 +1388,7 @@ class VMemPipeline:
             device=self.device
         )
         
+        print(f"[ADD_FRAME Timing] Total add_frame time: {time.time() - add_frame_start:.2f}s")
         print(f"Successfully added frame {len(self.pil_frames) - 1} to VMem. Total frames: {len(self.pil_frames)}.")
 
 
