@@ -42,6 +42,7 @@ inference:
     visualize: true
     visualize_pointcloud: false
     visualize_surfel: false
+    save_visualizations: true  # Save pointcloud and surfel visualizations at each step
 
 
 

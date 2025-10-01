@@ -1229,7 +1229,101 @@ class VMemPipeline:
         
         print(f"[Pipeline Timing] Surfel creation loop completed in {time.time() - surfel_loop_start:.2f}s")
         
+        # Save visualizations if enabled
+        if self.config.inference.get('save_visualizations', False):
+            # Save pointcloud visualization for the newest timestep
+            newest_timestep = time_indices[-1]
+            if newest_timestep not in self.processed_timesteps:
+                return  # Skip if no new frame was processed
+                
+            # Extract pointcloud for the newest frame
+            newest_frame_idx = len(pointcloud) - 1
+            newest_pointcloud = pointcloud[newest_frame_idx].detach().cpu()
+            
+            # Save pointcloud
+            import os
+            os.makedirs(self.visualize_dir, exist_ok=True)
+            from vmem.utils.util import visualize_pointcloud
+            
+            # Reshape pointcloud for visualization: [H, W, 3] -> [H*W, 3]
+            pc_flat = newest_pointcloud.reshape(-1, 3).numpy()
+            
+            # Filter out zero points
+            valid_mask = np.linalg.norm(pc_flat, axis=1) > 0.01
+            pc_filtered = pc_flat[valid_mask]
+            
+            if len(pc_filtered) > 0:
+                import matplotlib
+                matplotlib.use('Agg')  # Non-interactive backend
+                import matplotlib.pyplot as plt
+                
+                fig = plt.figure(figsize=(10, 8))
+                ax = fig.add_subplot(111, projection='3d')
+                ax.scatter(pc_filtered[:, 0], pc_filtered[:, 1], pc_filtered[:, 2], 
+                          c='blue', s=1, alpha=0.5)
+                ax.set_xlabel('X')
+                ax.set_ylabel('Y')
+                ax.set_zlabel('Z')
+                ax.set_title(f'Point Cloud - Timestep {newest_timestep}')
+                
+                # Set equal aspect ratio
+                max_range = np.array([pc_filtered[:, 0].max() - pc_filtered[:, 0].min(),
+                                     pc_filtered[:, 1].max() - pc_filtered[:, 1].min(),
+                                     pc_filtered[:, 2].max() - pc_filtered[:, 2].min()]).max() / 2.0
+                mid_x = (pc_filtered[:, 0].max() + pc_filtered[:, 0].min()) * 0.5
+                mid_y = (pc_filtered[:, 1].max() + pc_filtered[:, 1].min()) * 0.5
+                mid_z = (pc_filtered[:, 2].max() + pc_filtered[:, 2].min()) * 0.5
+                ax.set_xlim(mid_x - max_range, mid_x + max_range)
+                ax.set_ylim(mid_y - max_range, mid_y + max_range)
+                ax.set_zlim(mid_z - max_range, mid_z + max_range)
+                
+                plt.savefig(os.path.join(self.visualize_dir, f'pointcloud_timestep_{newest_timestep:03d}.png'), 
+                           dpi=150, bbox_inches='tight')
+                plt.close()
+                print(f"[Visualization] Saved pointcloud to {self.visualize_dir}/pointcloud_timestep_{newest_timestep:03d}.png")
+            
+            # Save surfel bank state
+            if len(self.surfels) > 0:
+                fig = plt.figure(figsize=(10, 8))
+                ax = fig.add_subplot(111, projection='3d')
+                
+                # Plot surfels as points (faster than full disk rendering)
+                positions = np.array([s.position for s in self.surfels])
+                ax.scatter(positions[:, 0], positions[:, 1], positions[:, 2],
+                          c='red', s=2, alpha=0.3)
+                ax.set_xlabel('X')
+                ax.set_ylabel('Y')
+                ax.set_zlabel('Z')
+                ax.set_title(f'Surfel Bank - {len(self.surfels)} surfels after timestep {newest_timestep}')
+                
+                # Set equal aspect ratio
+                max_range = np.array([positions[:, 0].max() - positions[:, 0].min(),
+                                     positions[:, 1].max() - positions[:, 1].min(),
+                                     positions[:, 2].max() - positions[:, 2].min()]).max() / 2.0
+                mid_x = (positions[:, 0].max() + positions[:, 0].min()) * 0.5
+                mid_y = (positions[:, 1].max() + positions[:, 1].min()) * 0.5
+                mid_z = (positions[:, 2].max() + positions[:, 2].min()) * 0.5
+                ax.set_xlim(mid_x - max_range, mid_x + max_range)
+                ax.set_ylim(mid_y - max_range, mid_y + max_range)
+                ax.set_zlim(mid_z - max_range, mid_z + max_range)
+                
+                plt.savefig(os.path.join(self.visualize_dir, f'surfel_bank_timestep_{newest_timestep:03d}.png'), 
+                           dpi=150, bbox_inches='tight')
+                plt.close()
+                print(f"[Visualization] Saved surfel bank to {self.visualize_dir}/surfel_bank_timestep_{newest_timestep:03d}.png")
+                
+                # Also save raw surfel data
+                normals = np.array([s.normal for s in self.surfels])
+                radii = np.array([s.radius for s in self.surfels])
+                np.savez(os.path.join(self.visualize_dir, f'surfel_data_timestep_{newest_timestep:03d}.npz'),
+                        positions=positions,
+                        normals=normals,
+                        radii=radii,
+                        timestep_mapping=dict(self.surfel_to_timestep))
+                print(f"[Visualization] Saved surfel data to {self.visualize_dir}/surfel_data_timestep_{newest_timestep:03d}.npz")
+        
         if self.config.inference.visualize_surfel:
+            from vmem.utils.util import visualize_surfels
             visualize_surfels(self.surfels, draw_normals=True, normal_scale=0.0003)
 
  
