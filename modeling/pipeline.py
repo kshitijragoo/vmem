@@ -1088,7 +1088,7 @@ class VMemPipeline:
         
         # self.surfels = []
         # self.surfel_to_timestep = {}
-        start_idx = 0 if len(self.surfels) == 0 else len(pointcloud) - self.config.model.target_num_frames
+        start_idx = 0 if len(self.surfels) == 0 else max(0, len(pointcloud) - self.config.model.target_num_frames)
         end_idx = len(pointcloud)
         # for frame_idx in range(len(pointcloud)):
         # Create surfels for the current frame
