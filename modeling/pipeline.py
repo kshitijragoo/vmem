@@ -1207,28 +1207,28 @@ class VMemPipeline:
             print(f"[Surfel Creation] Total surfels now: {len(self.surfels)}, Processed timesteps: {sorted(self.processed_timesteps)}")
 
             # Save surfels if configured
-            # if self.config.inference.save_surfels and len(self.surfels) > 0:
-            #     positions = np.array([s.position for s in surfels], dtype=np.float32)
-            #     normals   = np.array([s.normal   for s in surfels], dtype=np.float32)
-            #     radii     = np.array([s.radius   for s in surfels], dtype=np.float32)
-            #     colors    = np.array([s.color    for s in surfels], dtype=np.float32)
+            if self.config.inference.save_surfels and len(self.surfels) > 0:
+                positions = np.array([s.position for s in surfels], dtype=np.float32)
+                normals   = np.array([s.normal   for s in surfels], dtype=np.float32)
+                radii     = np.array([s.radius   for s in surfels], dtype=np.float32)
+                colors    = np.array([s.color    for s in surfels], dtype=np.float32)
 
-            #     np.savez(f"{self.config.visualization_dir}/surfels_added.npz",
-            #             positions=positions,
-            #             normals=normals,
-            #             radii=radii,
-            #             colors=colors)
+                np.savez(f"{self.config.visualization_dir}/surfels_added.npz",
+                        positions=positions,
+                        normals=normals,
+                        radii=radii,
+                        colors=colors)
                 
-            #     positions = np.array([s.position for s in self.surfels], dtype=np.float32)
-            #     normals   = np.array([s.normal   for s in self.surfels], dtype=np.float32)
-            #     radii     = np.array([s.radius   for s in self.surfels], dtype=np.float32)
-            #     colors    = np.array([s.color    for s in self.surfels], dtype=np.float32)
+                positions = np.array([s.position for s in self.surfels], dtype=np.float32)
+                normals   = np.array([s.normal   for s in self.surfels], dtype=np.float32)
+                radii     = np.array([s.radius   for s in self.surfels], dtype=np.float32)
+                colors    = np.array([s.color    for s in self.surfels], dtype=np.float32)
 
-            #     np.savez(f"{self.config.visualization_dir}/surfels_original.npz",
-            #             positions=positions,
-            #             normals=normals,
-            #             radii=radii,
-            #             colors=colors)
+                np.savez(f"{self.config.visualization_dir}/surfels_original.npz",
+                        positions=positions,
+                        normals=normals,
+                        radii=radii,
+                        colors=colors)
             
             self.surfels.extend(surfels)
         
