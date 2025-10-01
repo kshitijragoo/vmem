@@ -664,6 +664,8 @@ class VMemPipeline:
                 image_height=int(self.config.surfel.height)
             )
 
+            print(f"######################## retrieved_info: {retrieved_info}")
+
             _, frame_count = self.process_retrieved_spatial_information(retrieved_info)
             if self.config.inference.visualize:
                 visualize_depth(retrieved_info["depth"],
@@ -674,11 +676,16 @@ class VMemPipeline:
             
             # Build candidate frames based on relevance count
             candidates = []
+
             for frame, count in frame_count:
                 candidates.extend([frame] * count)
-                indices_to_frame = {
-                    i: frame for i, frame in enumerate(candidates)
-                }
+            
+            print(f"######################## candidates: {candidates}")
+            # Map candidate indices to frame indices (after building full list)
+            indices_to_frame = {
+                i: frame for i, frame in enumerate(candidates)
+            }
+            print(f"######################## indices_to_frame: {indices_to_frame}")
                 
             # Sort candidates by distance to target view
             distances = [self.geodesic_distance(torch.from_numpy(average_c2w).to(self.device, self.dtype), 
