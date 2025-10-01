@@ -1299,18 +1299,18 @@ class VMemPipeline:
                 print(f"[Visualization] Saved pointcloud to {self.visualize_dir}/pointcloud_timestep_{newest_timestep:03d}.png")
 
                 # Also export pointcloud as GLB for better 3D viewing
-                try:
-                    import trimesh
-                    # Build vertex array and simple colors (depth mapped to grayscale)
-                    vertices = pc_filtered.astype(np.float32)
-                    depths_norm = (depths - depths.min()) / (max(depths.max() - depths.min(), 1e-6))
-                    colors = (np.stack([depths_norm, depths_norm, depths_norm], axis=1) * 255).astype(np.uint8)
-                    cloud = trimesh.PointCloud(vertices=vertices, colors=colors)
-                    glb_path = os.path.join(self.visualize_dir, f'pointcloud_timestep_{newest_timestep:03d}.glb')
-                    cloud.export(glb_path)
-                    print(f"[Visualization] Saved pointcloud GLB to {glb_path}")
-                except Exception as e:
-                    print(f"[Visualization] Skipped GLB export (trimesh missing or error): {e}")
+                # try:
+                #     import trimesh
+                #     # Build vertex array and simple colors (depth mapped to grayscale)
+                #     vertices = pc_filtered.astype(np.float32)
+                #     depths_norm = (depths - depths.min()) / (max(depths.max() - depths.min(), 1e-6))
+                #     colors = (np.stack([depths_norm, depths_norm, depths_norm], axis=1) * 255).astype(np.uint8)
+                #     cloud = trimesh.PointCloud(vertices=vertices, colors=colors)
+                #     glb_path = os.path.join(self.visualize_dir, f'pointcloud_timestep_{newest_timestep:03d}.glb')
+                #     cloud.export(glb_path)
+                #     print(f"[Visualization] Saved pointcloud GLB to {glb_path}")
+                # except Exception as e:
+                #     print(f"[Visualization] Skipped GLB export (trimesh missing or error): {e}")
 
                 # Save surfel bank state
                 if len(self.surfels) > 0:
@@ -1361,6 +1361,28 @@ class VMemPipeline:
                                dpi=200, bbox_inches='tight', facecolor='white')
                     plt.close()
                     print(f"[Visualization] Saved surfel bank to {self.visualize_dir}/surfel_bank_timestep_{newest_timestep:03d}.png")
+                
+                # Also export surfel bank as GLB with the same timestep-based colors
+                try:
+                    import trimesh
+                    import matplotlib as mpl
+                    cmap = mpl.colormaps.get_cmap('jet')
+                    # Normalize colors based on timesteps present
+                    if len(surfel_colors) > 0:
+                        cmin = float(np.min(surfel_colors))
+                        cmax = float(np.max(surfel_colors))
+                        denom = max(cmax - cmin, 1e-6)
+                        norm_vals = (surfel_colors - cmin) / denom
+                    else:
+                        norm_vals = np.zeros_like(surfel_colors)
+                    rgba = cmap(norm_vals)
+                    rgb = (rgba[:, :3] * 255).astype(np.uint8)
+                    cloud = trimesh.PointCloud(vertices=positions.astype(np.float32), colors=rgb)
+                    glb_path = os.path.join(self.visualize_dir, f'surfel_bank_timestep_{newest_timestep:03d}.glb')
+                    cloud.export(glb_path)
+                    print(f"[Visualization] Saved surfel bank GLB to {glb_path}")
+                except Exception as e:
+                    print(f"[Visualization] Skipped surfel bank GLB export: {e}")
                     
                     # Also save raw surfel data
                     normals = np.array([s.normal for s in self.surfels])
