@@ -1298,6 +1298,24 @@ class VMemPipeline:
                 plt.close()
                 print(f"[Visualization] Saved pointcloud to {self.visualize_dir}/pointcloud_timestep_{newest_timestep:03d}.png")
 
+                # Additionally invoke utility visualizer for a second PNG using its API
+                try:
+                    from vmem.utils.util import visualize_pointcloud as util_visualize_pointcloud
+                    util_visualize_pointcloud(
+                        pc_filtered,
+                        colors=None,
+                        title=f'Point Cloud (utils) - Timestep {newest_timestep}',
+                        point_size=2,
+                        alpha=0.9,
+                    )
+                    import matplotlib.pyplot as _plt
+                    _plt.savefig(os.path.join(self.visualize_dir, f'pointcloud_utils_timestep_{newest_timestep:03d}.png'),
+                                 dpi=200, bbox_inches='tight', facecolor='white')
+                    _plt.close('all')
+                    print(f"[Visualization] Saved pointcloud (utils) to {self.visualize_dir}/pointcloud_utils_timestep_{newest_timestep:03d}.png")
+                except Exception as e:
+                    print(f"[Visualization] utils.visualize_pointcloud call skipped: {e}")
+
                 # Also export pointcloud as GLB for better 3D viewing
                 # try:
                 #     import trimesh
