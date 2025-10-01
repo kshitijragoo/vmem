@@ -42,38 +42,44 @@ ImgNorm = tvf.Compose([tvf.ToTensor(), tvf.Normalize((0.5, 0.5, 0.5), (0.5, 0.5,
 
 
 class VMemPipeline:
-    def __init__(self, config, device="cpu", dtype=torch.float32):
+    def __init__(self, config, device="cpu", dtype=torch.float32, surfel_only_mode=False):
         self.config = config
+        self.surfel_only_mode = surfel_only_mode
         
-        model_path = self.config.model.get("model_path", None)
+        if not surfel_only_mode:
+            # Full VMem pipeline (for standalone VMem usage)
+            model_path = self.config.model.get("model_path", None)
 
-        self.model = VMemModel(VMemModelParams()).to(device, dtype)
-        # load from huggingface
-        from huggingface_hub import hf_hub_download
-        state_dict = torch.load(hf_hub_download(repo_id=model_path, filename="vmem_weights.pth"), map_location='cpu')
-        state_dict = {k.replace("module.", "") if "module." in k else k: v for k, v in state_dict.items()}
+            self.model = VMemModel(VMemModelParams()).to(device, dtype)
+            # load from huggingface
+            from huggingface_hub import hf_hub_download
+            state_dict = torch.load(hf_hub_download(repo_id=model_path, filename="vmem_weights.pth"), map_location='cpu')
+            state_dict = {k.replace("module.", "") if "module." in k else k: v for k, v in state_dict.items()}
+                    
                 
+            self.model.load_state_dict(state_dict, strict=True)
+         
             
-        self.model.load_state_dict(state_dict, strict=True)
-     
-        
-        self.model_wrapper = VMemWrapper(self.model)
-        self.model_wrapper.eval()
+            self.model_wrapper = VMemWrapper(self.model)
+            self.model_wrapper.eval()
 
-        
-        self.vae = AutoEncoder(chunk_size=1).to(device, dtype)
-        self.vae.eval()
-        self.image_encoder = CLIPConditioner().to(device, dtype)
-        self.image_encoder.eval()
-        
-        self.discretization = DDPMDiscretization()
-        self.denoiser = DiscreteDenoiser(discretization=self.discretization, num_idx=1000, device=device)
-        self.sampler = create_samplers(guider_types=config.model.guider_types,
-                                discretization=self.discretization,
-                                num_frames=config.model.num_frames,
-                                num_steps=config.model.inference_num_steps,
-                                cfg_min=config.model.cfg_min,
-                                device=device)
+            
+            self.vae = AutoEncoder(chunk_size=1).to(device, dtype)
+            self.vae.eval()
+            self.image_encoder = CLIPConditioner().to(device, dtype)
+            self.image_encoder.eval()
+            
+            self.discretization = DDPMDiscretization()
+            self.denoiser = DiscreteDenoiser(discretization=self.discretization, num_idx=1000, device=device)
+            self.sampler = create_samplers(guider_types=config.model.guider_types,
+                                    discretization=self.discretization,
+                                    num_frames=config.model.num_frames,
+                                    num_steps=config.model.inference_num_steps,
+                                    cfg_min=config.model.cfg_min,
+                                    device=device)
+        else:
+            print("[Performance Mode] Surfel-only mode: Skipping VMem diffusion model, VAE, and CLIP encoder")
+            print("                   Only loading VGGT for 3D reconstruction and surfel-based retrieval")
 
         
                 
@@ -188,11 +194,14 @@ class VMemPipeline:
             image_tensor = torch.from_numpy(np.array(image)).permute(2, 0, 1).float() / 127.5 - 1.0
             image_tensor = image_tensor.unsqueeze(0).to(self.device, self.dtype)
         
-        # Encode the image to VAE latents
-        self.latents = [encode_vae_image(image_tensor, self.vae, self.device, self.dtype).detach().cpu().numpy()[0]]
-        
-        # Encode the image embeddings for the image_encoder
-        self.encoder_embeddings = [encode_image(image_tensor, self.image_encoder, self.device, self.dtype).detach().cpu().numpy()[0]]
+        # Encode the image to VAE latents (only if not in surfel-only mode)
+        if not self.surfel_only_mode:
+            self.latents = [encode_vae_image(image_tensor, self.vae, self.device, self.dtype).detach().cpu().numpy()[0]]
+            self.encoder_embeddings = [encode_image(image_tensor, self.image_encoder, self.device, self.dtype).detach().cpu().numpy()[0]]
+        else:
+            # In surfel-only mode, we don't need these (WorldMem has its own)
+            self.latents = [None]
+            self.encoder_embeddings = [None]
         
         # Store camera pose and intrinsics
         self.c2ws = [c2w]
@@ -557,9 +566,16 @@ class VMemPipeline:
         # Function to prepare context tensors from indices
         def prepare_context_data(indices):
             c2ws = [self.c2ws[i] for i in indices]
-            latents = [torch.from_numpy(self.latents[i]).to(self.device, self.dtype) for i in indices]
-            embeddings = [torch.from_numpy(self.encoder_embeddings[i]).to(self.device, self.dtype) for i in indices]
             intrinsics = [self.Ks[i] for i in indices]
+            
+            if not self.surfel_only_mode:
+                latents = [torch.from_numpy(self.latents[i]).to(self.device, self.dtype) for i in indices]
+                embeddings = [torch.from_numpy(self.encoder_embeddings[i]).to(self.device, self.dtype) for i in indices]
+            else:
+                # In surfel-only mode, return None for latents/embeddings (not used by WorldMem)
+                latents = None
+                embeddings = None
+            
             return c2ws, latents, embeddings, intrinsics, indices
         
         # if self.temporal_only:
@@ -811,13 +827,18 @@ class VMemPipeline:
         (context_c2ws, context_latents, context_encoder_embeddings, context_Ks, context_time_indices) = context_data
 
             
-        return {
+        result = {
             "context_c2ws": torch.from_numpy(np.array(context_c2ws)).to(self.device, self.dtype),
-            "context_latents": torch.stack(context_latents).to(self.device, self.dtype),
-            "context_encoder_embeddings": torch.stack(context_encoder_embeddings).to(self.device, self.dtype),
             "context_Ks": torch.from_numpy(np.array(context_Ks)).to(self.device, self.dtype),
             "context_time_indices": context_time_indices,
         }
+        
+        # Only include latents/embeddings if not in surfel-only mode
+        if not self.surfel_only_mode:
+            result["context_latents"] = torch.stack(context_latents).to(self.device, self.dtype)
+            result["context_encoder_embeddings"] = torch.stack(context_encoder_embeddings).to(self.device, self.dtype)
+        
+        return result
 
 
         
@@ -1306,14 +1327,19 @@ class VMemPipeline:
         # Ensure tensor is on the correct device for processing
         image_tensor = image_tensor.to(self.device, self.dtype)
 
-        # 1. Encode the image to get its latent and CLIP embedding
-        with torch.no_grad():
-            latent = encode_vae_image(image_tensor, self.vae, self.device, self.dtype).detach().cpu().numpy()[0]
-            embedding = encode_image(image_tensor, self.image_encoder, self.device, self.dtype).detach().cpu().numpy()[0]
+        # 1. Encode the image to get its latent and CLIP embedding (only if needed)
+        if not self.surfel_only_mode:
+            with torch.no_grad():
+                latent = encode_vae_image(image_tensor, self.vae, self.device, self.dtype).detach().cpu().numpy()[0]
+                embedding = encode_image(image_tensor, self.image_encoder, self.device, self.dtype).detach().cpu().numpy()[0]
+            self.latents.append(latent)
+            self.encoder_embeddings.append(embedding)
+        else:
+            # In surfel-only mode, skip encoding (WorldMem has its own latents)
+            self.latents.append(None)
+            self.encoder_embeddings.append(None)
 
         # 2. Append the new data to the memory lists
-        self.latents.append(latent)
-        self.encoder_embeddings.append(embedding)
         self.c2ws.append(c2w)
         self.Ks.append(K)
         
