@@ -40,6 +40,7 @@ surfel:
 
 inference:
     visualize: true
+    save_surfels: true
     visualize_pointcloud: true
     visualize_surfel: true
     save_visualizations: true  # Save pointcloud and surfel visualizations at each step
