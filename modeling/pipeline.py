@@ -42,7 +42,7 @@ ImgNorm = tvf.Compose([tvf.ToTensor(), tvf.Normalize((0.5, 0.5, 0.5), (0.5, 0.5,
 
 
 class VMemPipeline:
-    def __init__(self, config, device="cpu", dtype=torch.float32, surfel_only_mode=False):
+    def __init__(self, config, device="cuda", dtype=torch.float32, surfel_only_mode=True):
         self.config = config
         self.surfel_only_mode = surfel_only_mode
         
@@ -828,6 +828,7 @@ class VMemPipeline:
             
             # Convert to tensor and maintain original order (don't reverse)
             context_time_indices = torch.from_numpy(np.array(selected_indices))
+            
         context_data = prepare_context_data(context_time_indices)
             
         (context_c2ws, context_latents, context_encoder_embeddings, context_Ks, context_time_indices) = context_data
