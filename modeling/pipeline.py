@@ -507,6 +507,10 @@ class VMemPipeline:
         frame_count = self.get_frame_distribution(num_retrieved_frames, list(timestep_weights.values())) # hard code
         frame_count = {k: int(v) for k, v in zip(timestep_count.keys(), frame_count)}
         
+        print(f"[Surfel Retrieval] Found {len(timestep_count)} unique timesteps with surfels")
+        print(f"[Surfel Retrieval] Timestep scores: {dict(sorted(timestep_count.items()))}")
+        print(f"[Surfel Retrieval] Frame distribution: {dict(sorted(frame_count.items()))}")
+        
         # sort timestep_weights and frame_distribution by timestep without 
         timestep_weights = sorted(timestep_weights.items(), key=lambda x: x[0])
         frame_count = sorted(frame_count.items(), key=lambda x: x[0])
@@ -1089,6 +1093,9 @@ class VMemPipeline:
         # for frame_idx in range(len(pointcloud)):
         # Create surfels for the current frame
         for frame_idx in range(start_idx, end_idx):
+            # Map array index to actual timestep
+            actual_timestep = time_indices[frame_idx]
+            
             surfels = self.pointmap_to_surfels(
                 pointmap=pointcloud[frame_idx],
                 focal_lengths=focal_lengths[frame_idx] * self.config.surfel.shrink_factor,
@@ -1102,7 +1109,7 @@ class VMemPipeline:
             if len(self.surfels) > 0:
                 surfels, self.surfel_to_timestep = self.merge_surfels(
                     new_surfels=surfels,
-                    current_timestep=frame_idx,
+                    current_timestep=actual_timestep,
                     existing_surfels=self.surfels,
                     existing_surfel_to_timestep=self.surfel_to_timestep,
                     # position_threshold=self.config.surfel.merge_position_threshold,
@@ -1114,7 +1121,9 @@ class VMemPipeline:
             num_surfels = len(surfels)
             surfel_start_index = len(self.surfels)
             for surfel_index in range(num_surfels):
-                self.surfel_to_timestep[surfel_start_index + surfel_index] = [frame_idx]
+                self.surfel_to_timestep[surfel_start_index + surfel_index] = [actual_timestep]
+            
+            print(f"[Surfel Creation] Frame {frame_idx} -> Timestep {actual_timestep}: Created {num_surfels} new surfels")
 
             # Save surfels if configured
             # if self.config.inference.save_surfels and len(self.surfels) > 0:
