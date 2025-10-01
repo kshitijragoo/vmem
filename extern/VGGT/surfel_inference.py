@@ -103,6 +103,8 @@ def run_inference_from_pil(
     # Run VGGT inference
     import time
     print(f"[VGGT Timing] Starting VGGT inference on {len(input_images)} images...")
+    print(f"[VGGT Timing] Input batch device: {images_batch.device}, shape: {images_batch.shape}")
+    print(f"[VGGT Timing] Model device: {next(vggt_model.parameters()).device}")
     vggt_start = time.time()
     with torch.no_grad():
         outputs = vggt_model(images_batch.unsqueeze(0))  # Add batch dimension
