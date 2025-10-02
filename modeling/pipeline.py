@@ -791,7 +791,9 @@ class VMemPipeline:
             selected_indices = []
             current_threshold = self.initial_threshold
             
-            # Always start with the closest pose
+            # Always start with the closest pose (guard against no candidates)
+            if len(sorted_frames) == 0:
+                return {"context_time_indices": torch.tensor([], dtype=torch.long)}
             selected_indices.append(sorted_frames[0])
             if not use_non_maximum_suppression:
                 selected_indices.append(len(self.c2ws) - 1)
